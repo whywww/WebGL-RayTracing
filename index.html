@@ -2,68 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Project B</title>  <!-- Keep it short: title appears on browser tab-->
-		<!-- OPTIONAL: let's surround canvas with a thin blue outline -->
+    <title>Project B</title> 
 		<style type =" text/ css"> canvas {border: 2px dotted blue;} </style>
   </head>
 
-	<!--	Create the HTML5 'canvas' element in which we will run WebGL
-	-->
   <body onload="main()" onresize="onResize()">
     <canvas id="webgl" width="800" height="500">
-    Please use a browser that supports "canvas"
+    	Please use a browser that supports "canvas"
     </canvas>
 	<br> 
 	    <b>Ray Tracer: Press 't' to Trace!</b> (left: WebGL Scene Preview. Right: Ray-Traced Result.)
 	<br>
 	    <button type="button" onclick="onSuperSampleButton()" >Super-Sampling</button>
-	    <button type="button" onclick="onJitterButton()"      >Jitter</button>
-      <!-- onSuperSampleButton() and onJitterButton() 
-           modifies this span object's contents: -->
+	    <button type="button" onclick="onJitterButton()">Jitter</button>
 		<span id='AAreport'> 1 sample/pixel. No jitter. </span> 
-		<div>press T again to see result.</div>
+		<span>(Higher Sampling rate may take a while to see result.)</span>
       	<br>
 	    <button type="button" onclick="onSceneButton()" >Change Scene</button>
-			<!-- onSceneButton() modifies this span object's contents: -->
 	    <span id='SceneReport'> Show Scene Number 0 </span> 
-
+		<button type="button" onclick="onRecurseButton()" >Change Recurse Depth</button>
+	    <span id='RecurseReport'> Recurse Depth 1 </span> 
 	<br>
 	    Mouse Drag: Aims the camera (turns left,right,up,down)
 	<br>
-	    W/S; A/D keys: move camera forward/backwards; strafe left/right. Q/E: strafe down/up.
+		W/S; A/D keys: move camera forward/backwards; strafe left/right. Q/E: strafe down/up.
+	    I/K; J/L keys: move light forward/backwards; strafe left/right. U/O: strafe down/up.
 	<br>
-<hr> <!-- Draw a horizontal-line separator------------------------------------------------------------->
-	Open Console, please: (right-click-->'Inspect Element'-->'Console' tab)
-	<br>
-	Try keyboard & mouse click/drag inside the canvas, and:
-		<br>
-	<!-- Make 'div' elements to hold changeable HTML made in our JavaScript file;
-		 (where? GUIbox-Lib.js, in keyboard & mouse fcns)
-	-->
-	<p>
-		<div id='KeyDown'> KeyDown...</div>
-		<div id='KeyMod'> KeyMod...<br><br><br> </div>
-		<div id='MouseResult0'> MouseResult0... </div> 
-		<div id='MouseDragResult'> MouseDragResult... </div>
-		<div id='MouseCanvas'> MouseCanvas... </div>
-  </p>
 
-	<!--	Load in the JavaScript libraries supplied by our textbook 
-			(Matsuda et al., 2013 WebGL Programming Guide) that help us
-			with WebGL programming:
-	-->
-	<script src="lib/cuon-matrix-quat03.js"></script>
-    <script src="lib/webgl-utils.js"></script>
-    <script src="lib/webgl-debug.js"></script>
-    <script src="lib/cuon-utils.js"></script>
-<!-- REMOVED!!		<script src="../lib/cuon-matrix-quat03.js"></script>  -->
-<!-- Instead, we UPGRADED to Brandon Jones' far-faster, 
-      far more complete vector/matrix/quaternion library: 
- 			SEE: http://glmatrix.net/ fast vector/matrix lib for webGL  -->
-	<script src="lib/glmatrix.js"></script> 
-	<script src="lib/materials_Ayerdi04.js"></script>
+		<script src="lib/cuon-matrix-quat03.js"></script>
+		<script src="lib/webgl-utils.js"></script>
+		<script src="lib/webgl-debug.js"></script>
+		<script src="lib/cuon-utils.js"></script>
+		<script src="lib/glmatrix.js"></script> 
+		<script src="lib/materials_Ayerdi04.js"></script>
 
-		<!-- finally, our own code: -->
 		<script src="js/GUIbox-Lib.js"    ></script>
 		<script src="js/Camera.js"></script>
 		<script src="js/Geom.js"  ></script>
@@ -71,5 +43,5 @@
 		<script src="js/Scene.js" ></script>
 		<script src="js/VBObox-Lib.js"    ></script>
     	<script src="js/RayTracer.js"    ></script>
-  </body>
+  	</body>
 </html>

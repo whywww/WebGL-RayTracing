@@ -8,10 +8,15 @@ const RT_CYLINDER = 4;    // A cylinder with user-settable radius at each end
                         // radius at each end makes a disk.
 const RT_TRIANGLE = 5;    // a triangle with 3 vertices.
 const RT_BLOBBY   = 6;
+const RT_CAPSULE  = 7;
+const RT_TORUS = 8;
 
 function CGeom(shapeSelect) {
     if(shapeSelect == undefined) shapeSelect = RT_GNDPLANE;	// default shape.
-	this.shapeType = shapeSelect;
+    this.shapeType = shapeSelect;
+    this.maxStep = 100;
+    this.maxDis = 100;
+    this.surfDis = 0.001;
 
     switch(this.shapeType) {
         case RT_GNDPLANE: //--------------------------------------------------------
@@ -24,6 +29,7 @@ function CGeom(shapeSelect) {
             this.gapColor = vec4.fromValues(0.9,0.9,0.9,1.0);  // near-white
             break;
         case RT_DISK:
+            this.radius = 2.0;
             this.traceMe = function(inR,hitlist) { return this.traceDisk(inR,hitlist); }; 
             this.xgap = 61/107;
             this.ygap = 61/107;
@@ -32,8 +38,22 @@ function CGeom(shapeSelect) {
             this.gapColor = vec4.fromValues(0.9,0.9,0.2,1.0);  // yellow
             break;
         case RT_SPHERE:
+            this.radius = 1.0;
             this.traceMe = function(inR,hitlist) { return this.traceSphere(inR,hitlist); };
             this.lineColor = vec4.fromValues(0.0,0.2,0.7,1.0);  // blue
+            break;
+        case RT_CAPSULE:
+            this.end0 = vec4.fromValues(0,0,0,1);
+            this.end1 = vec4.fromValues(2,0,0,1)
+            this.radius = 0.2;
+            this.traceMe = function(inR, hitlist) { return this.traceCapsule(inR,hitlist); };
+            this.lineColor = vec4.fromValues(0.7,0.2,0.7,1.0);  // pink
+            break;
+        case RT_TORUS:
+            this.bigR = 1;
+            this.smallR = 0.1;
+            this.traceMe = function(inR, hitlist) { return this.traceTorus(inR,hitlist); };
+            this.lineColor = vec4.fromValues(0.9,0.9,0.0,1.0);  // grey
             break;
         default:
             console.log("CGeom() constructor: ERROR! INVALID shapeSelect:", shapeSelect);
@@ -137,69 +157,6 @@ CGeom.prototype.rayScale = function(sx,sy,sz) {
     mat4.transpose(this.normal2world, this.worldRay2model); // model normals->world
 }
 
-CGeom.prototype.traceDisk = function(wRay, hit, myHitList) {
-    // Find intersection of CRay object 'wRay' with grid-plane at z== this.zGrid
-    // return -1 if ray MISSES the plane
-    // return  0 if ray hits BETWEEN lines
-    // return  1 if ray hits ON the lines
-    // wRay is in world coord.
-    var mRay = new CRay();  // model coord ray
-
-    vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
-    vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
-    var nearFlag = 1;
-
-    var t0 = (-mRay.orig[2]) / mRay.dir[2];
-    if(t0 < 0) {
-        // ray is BEHIND eyepoint, or the hit point is farther than prev hit.
-        return false;  
-    }
-    vec4.scaleAndAdd(hit.modelHitPt, mRay.orig, mRay.dir, t0 - g_myScene.RAY_EPSILON);
-    vec4.scaleAndAdd(hit.hitPt, wRay.orig, wRay.dir, t0 - g_myScene.RAY_EPSILON);
-    
-    if (hit.modelHitPt[0]*hit.modelHitPt[0] + hit.modelHitPt[1]*hit.modelHitPt[1] > 2*2){
-        return false;
-    }
-
-    if (wRay.isShadowRay){
-        return true;
-    }
-    myHitList.hitlist.push(hit);
-    myHitList.iEnd = myHitList.hitlist.length-1;
-    var nearestHit = myHitList.hitlist[myHitList.iNearest];
-
-    if (t0 > nearestHit.t0){
-        // the hit point is farther than nearest hit
-        nearFlag = 0;
-    } else {
-        myHitList.iNearest = myHitList.iEnd;  // update new nearest index
-    }
-
-    // update hit variables
-    hit.t0 = t0;
-    hit.hitGeom = this;
-
-    vec4.negate(hit.viewN, wRay.dir);
-    vec4.normalize(hit.viewN, hit.viewN);
-    vec4.transformMat4(hit.surfNorm, vec4.fromValues(0,0,1,0), this.normal2world);
-    vec4.normalize(hit.surfNorm, hit.surfNorm);
-    
-    if (nearFlag == 1){
-        var loc = Math.abs(hit.modelHitPt[0] / this.xgap);  // how many 'xgaps' from the origin
-        if(loc%1 < this.lineWidth) {  // hit a line of constant-x?
-            hit.hitNum = 1;
-            return;
-        }
-        loc = Math.abs(hit.modelHitPt[1] / this.ygap);  // how many 'ygaps' from origin
-        if(loc%1 < this.lineWidth) {  // hit a line of constant-y?
-            hit.hitNum = 1;
-            return;
-        }
-        hit.hitNum = 0;
-        return;
-    }
-}
-
 CGeom.prototype.traceGrid = function(wRay, myHitList) {
     // Find intersection of CRay object 'wRay' with grid-plane at z== this.zGrid
     // return -1 if ray MISSES the plane
@@ -213,12 +170,20 @@ CGeom.prototype.traceGrid = function(wRay, myHitList) {
     vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
     vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
 
-    var t0 = (-mRay.orig[2]) / mRay.dir[2];
+    var t0 = (-mRay.orig[2]) / mRay.dir[2];  // why not normalize?
+
     if(t0 < 0) {
         // ray is BEHIND eyepoint. Missed
         return false;  
     }
     if (wRay.isShadowRay){
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
         return true;
     }
 
@@ -272,18 +237,26 @@ CGeom.prototype.traceDisk = function(wRay, myHitList) {
     vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
 
     var t0 = (-mRay.orig[2]) / mRay.dir[2];
-    if(t0 < 0) {
+    // var t0 = this.rayMarching(mRay);
+    if(t0 < 0 || t0 == false) {
         // ray is BEHIND eyepoint
         return false;  
     }
     vec4.scaleAndAdd(hit.modelHitPt, mRay.orig, mRay.dir, t0 - g_myScene.RAY_EPSILON);
     vec4.scaleAndAdd(hit.hitPt, wRay.orig, wRay.dir, t0 - g_myScene.RAY_EPSILON);
     
-    if (hit.modelHitPt[0]*hit.modelHitPt[0] + hit.modelHitPt[1]*hit.modelHitPt[1] > 2*2){
+    if (hit.modelHitPt[0]*hit.modelHitPt[0] + hit.modelHitPt[1]*hit.modelHitPt[1] > this.radius*this.radius){
         return false;
     }
 
     if (wRay.isShadowRay){
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
         return true;
     }
     myHitList.hitlist.push(hit);
@@ -331,7 +304,6 @@ CGeom.prototype.traceSphere = function(wRay, myHitList) {
 
     vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
     vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
-    // var nearFlag = 1;
 
     var r2s = vec4.create();  // from ray start point to sphere center
     vec4.subtract(r2s, vec4.fromValues(0,0,0,1), mRay.orig);  // in model space. sphere center always at origin
@@ -355,21 +327,31 @@ CGeom.prototype.traceSphere = function(wRay, myHitList) {
       return false;
     }
 
-    if (wRay.isShadowRay){  // hit something.
-        return true;
-    }
-
     var L2hc = (1.0 - LM2); // SQUARED half-chord length.
 
     var t0 = tcaS / DL2 - Math.sqrt(L2hc / DL2);
+    // var t0 = this.rayMarching(mRay);
+    if (t0 < 0 || t0 == false){
+        return false;  // Missed
+    }
+
+    if (wRay.isShadowRay){  // hit something.
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
+        return true;
+    }
 
     myHitList.hitlist.push(hit);
     myHitList.iEnd = myHitList.hitlist.length-1;
     var nearestHit = myHitList.hitlist[myHitList.iNearest];
 
-    if(t0 <= nearestHit.t0) {    // is this new hit-point Farther than 'myHit'?
+    if(t0 <= nearestHit.t0) {    // is this new hit-point Closer than 'myHit'?
         myHitList.iNearest = myHitList.iEnd;  // update new nearest index   
-        // nearFlag = 0;
     }
 
     // update hit variables
@@ -381,11 +363,178 @@ CGeom.prototype.traceSphere = function(wRay, myHitList) {
 
     vec4.negate(hit.viewN, wRay.dir);
     vec4.normalize(hit.viewN, hit.viewN);
-    vec4.transformMat4(hit.surfNorm, vec4.fromValues(0,0,1,0), this.normal2world);
+    vec4.transformMat4(hit.surfNorm, hit.modelHitPt, this.normal2world);
+    hit.surfNorm[3] = 0;
     vec4.normalize(hit.surfNorm, hit.surfNorm);
 
-    // if (nearFlag == 1){
-        hit.hitNum = 1;
-    // }
+    hit.hitNum = 1;
     return;
+}
+
+CGeom.prototype.traceCapsule = function(wRay, myHitList) {
+    var mRay = new CRay();  // model coord ray
+    var hit = new CHit();
+    hit.init();
+
+    vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
+    vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
+
+    var t0 = this.rayMarching(mRay);
+    if(t0 < 0) {
+        // ray is BEHIND eyepoint
+        return false;  
+    }
+
+    if (wRay.isShadowRay){
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
+        return true;
+    }
+
+    myHitList.hitlist.push(hit);
+    myHitList.iEnd = myHitList.hitlist.length-1;
+    var nearestHit = myHitList.hitlist[myHitList.iNearest];
+
+    if (t0 <= nearestHit.t0){
+        // the hit point is nearer than nearest hit
+        myHitList.iNearest = myHitList.iEnd;  // update new nearest index
+    }
+    // update hit variables
+    hit.t0 = t0;
+    hit.hitGeom = this;
+
+    vec4.scaleAndAdd(hit.modelHitPt, mRay.orig, mRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+    vec4.scaleAndAdd(hit.hitPt, wRay.orig, wRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+
+    vec4.negate(hit.viewN, wRay.dir);
+    vec4.normalize(hit.viewN, hit.viewN);
+    if (hit.modelHitPt[0] <= this.end0[0]){
+        var modelNorm = hit.modelHitPt;
+        modelNorm[0] += this.end0[0];
+        modelNorm[3] = 0;
+    } else if (hit.modelHitPt[0] >= this.end1[0]) {
+        var modelNorm = hit.modelHitPt;
+        modelNorm[0] -= this.end1[0];
+        modelNorm[3] = 0;
+    } else {
+        var modelNorm = vec4.fromValues(0, hit.modelHitPt[1], hit.modelHitPt[2], 0);
+    }
+    vec4.transformMat4(hit.surfNorm, modelNorm, this.normal2world);
+    vec4.normalize(hit.surfNorm, hit.surfNorm);
+
+    hit.hitNum = 1;
+    return;
+}
+
+CGeom.prototype.traceTorus = function(wRay, myHitList) {
+    var mRay = new CRay();  // model coord ray
+    var hit = new CHit();
+    hit.init();
+
+    vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
+    vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
+
+    var t0 = this.rayMarching(mRay);
+    if(t0 < 0) {  
+        // ray is BEHIND eyepoint
+        return false;  
+    }
+
+    if (wRay.isShadowRay){
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
+        return true;
+    }
+
+    myHitList.hitlist.push(hit);
+    myHitList.iEnd = myHitList.hitlist.length-1;
+    var nearestHit = myHitList.hitlist[myHitList.iNearest];
+
+    if (t0 <= nearestHit.t0){
+        // the hit point is nearer than nearest hit
+        myHitList.iNearest = myHitList.iEnd;  // update new nearest index
+    }
+    // update hit variables
+    hit.t0 = t0;
+    hit.hitGeom = this;
+
+    vec4.scaleAndAdd(hit.modelHitPt, mRay.orig, mRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+    vec4.scaleAndAdd(hit.hitPt, wRay.orig, wRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+
+    vec4.negate(hit.viewN, wRay.dir);
+    vec4.normalize(hit.viewN, hit.viewN);
+
+    // Compute Normal
+    var theta = Math.atan(hit.modelHitPt[1]/hit.modelHitPt[0]); 
+
+    if (hit.modelHitPt[0] < 0){  // 2,3
+        theta = Math.PI + theta;
+    }
+    var x = this.bigR * Math.cos(theta);
+    var y = this.bigR * Math.sin(theta);
+    var modelNorm = vec4.fromValues(hit.modelHitPt[0] - x, hit.modelHitPt[1] - y, hit.modelHitPt[2], 0);
+
+    vec4.transformMat4(hit.surfNorm, modelNorm, this.normal2world);
+    vec4.normalize(hit.surfNorm, hit.surfNorm);
+
+    hit.hitNum = 1;
+    return;
+}
+
+CGeom.prototype.rayMarching = function(mRay){
+    var t0 = 0;  // distance to origin
+    for (var i = 0; i < this.maxStep; i++){
+        var p = vec4.create();
+        vec4.scaleAndAdd(p, mRay.orig, mRay.dir, t0);  // new sphere origin, in model coord.
+        var tS = this.getDistance(p);  // distance from new origin to nearest point in object.
+        t0 += tS;
+        if (tS < this.surfDis){  // hit
+            return t0;
+        }
+        if (t0 > this.maxDis){ // miss
+            return -1;
+        }
+    }
+}
+
+CGeom.prototype.getDistance = function(p){
+    var dis;
+    switch(this.shapeType) {
+        case RT_GNDPLANE:
+            dis = p[2];
+            break;
+        case RT_DISK:
+            dis = p[2];
+            break;
+        case RT_SPHERE:
+            dis = vec4.distance(p, vec4.fromValues(0,0,0,1)) - this.radius;
+            break;
+        case RT_CAPSULE:
+            var ab = vec4.create();
+            var ap = vec4.create();
+            vec4.subtract(ab, this.end1, this.end0);
+            vec4.subtract(ap, p, this.end0);
+
+            var t = vec4.dot(ab, ap) / vec4.dot(ab, ab);
+            t =  Math.min(Math.max(t, 0), 1);
+            var c = vec4.create();
+            vec4.scaleAndAdd(c, this.end0, ab, t);
+            dis = vec4.distance(p, c) - this.radius;
+            break;
+        case RT_TORUS:
+            var x = Math.sqrt(p[0]*p[0] + p[1]*p[1]) - this.bigR;
+            dis = Math.sqrt(x*x + p[2]*p[2]) - this.smallR;
+            break;
+    }
+    return dis;
 }

@@ -20,6 +20,7 @@ var g_AAcode = 1;  // Antialiasing setting: 1 == NO antialiasing at all.
                    // 2,3,4... == supersamples: 2x2, 3x3, 4x4, ...
 var G_AA_MAX = 4;  // highest super-sampling number allowed. 
 var g_isJitter = 0;  // ==1 for jitter, ==0 for no jitter.
+var sceneNum = 0;
 
 function main() {
     g_canvasID = document.getElementById('webgl');
@@ -33,7 +34,7 @@ function main() {
     gl.enable(gl.DEPTH_TEST);  // CAREFUL! don't do depth tests for 2D!
 
     gui.init();
-    g_myScene.initScene(1);  // initialize our ray-tracer (to default scene)
+    g_myScene.initScene(0);  // initialize our ray-tracer (to default scene)
     
     preView.init(gl);
     rayView.init(gl);
@@ -43,10 +44,7 @@ function main() {
 
     //---------OPTIONAL: do all the things done by 't' key; make our initial
     // ray-traced image automatically:
-    g_myScene.makeRayTracedImage(); // run the ray-tracer		
-    rayView.switchToMe(); // be sure OUR VBO & shaders are in use, then
-    rayView.reload();     // re-transfer VBO contents and texture-map contents
-    drawAll();
+    reload();
 }
 
 function drawAll() {
@@ -82,6 +80,8 @@ function onSuperSampleButton() {
         document.getElementById('AAreport').innerHTML = g_AAcode + " sample/pixel, but jittered.";
     else 
         document.getElementById('AAreport').innerHTML = g_AAcode + " sample/pixel. No jitter."; 
+    
+    reload();
 }
 
 function onJitterButton() {
@@ -91,4 +91,29 @@ function onJitterButton() {
         document.getElementById('AAreport').innerHTML = g_AAcode + " sample/pixel, but jittered.";
     else 
         document.getElementById('AAreport').innerHTML = g_AAcode + " sample/pixel. No jitter."; 
+
+    reload();
+}
+
+function onSceneButton(){
+    if (sceneNum == 1) sceneNum = 0;
+    else sceneNum ++;
+    g_myScene.initScene(sceneNum);
+    document.getElementById('SceneReport').innerHTML = 'Show Scene Number ' + sceneNum;
+    
+    reload();
+}
+
+function reload(){
+    g_myScene.makeRayTracedImage(); // run the ray-tracer		
+    rayView.switchToMe(); // be sure OUR VBO & shaders are in use, then
+    rayView.reload();     // re-transfer VBO contents and texture-map contents
+    drawAll();
+}
+
+function onRecurseButton(){
+    if (g_myScene.recurseDepth == 3) g_myScene.recurseDepth = 0;
+    g_myScene.recurseDepth ++;
+    document.getElementById('RecurseReport').innerHTML = 'Recurse Depth ' + (g_myScene.recurseDepth-1);
+    reload();
 }

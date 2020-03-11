@@ -92,7 +92,7 @@ CRay.prototype.printMe = function(name) {
 }
 
 function CLight(){
-    this.lightPos = vec4.fromValues(-1.5, -4, 3, 1);  // world coord
+    this.lightPos = vec4.fromValues(-1.2, -5, 1, 1);  // world coord
     this.Ia = vec3.fromValues(1.0, 1.0, 1.0);
     this.Id = vec3.fromValues(1.0, 1.0, 1.0);
     this.Is = vec3.fromValues(1.0, 1.0, 1.0);
@@ -101,7 +101,7 @@ function CLight(){
 
 CLight.prototype.setShadowRay = function(wRay, hitpt) {
     dir = vec4.create();
-    vec4.subtract(dir, this.lightPos, hitpt);
+    vec4.subtract(dir, this.lightPos, hitpt);  // from hitpt to lamp
     vec4.normalize(dir, dir);
 
     vec4.copy(wRay.orig, hitpt);	

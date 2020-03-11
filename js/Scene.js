@@ -43,7 +43,7 @@ CHitList.prototype.init = function(){
 }
 
 function CScene() {
-    this.RAY_EPSILON = 1.0E-6;     // ray-tracer precision limits; treat 
+    this.RAY_EPSILON = 1.0E-1;     // ray-tracer precision limits; treat 
                                     // any value smaller than this as zero.
                                     // (why?  JS uses 52-bit mantissa;
                                     // 2^-52 = 2.22E-16, so 10^-15 gives a
@@ -60,7 +60,8 @@ function CScene() {
                                     // CGeom objects of the current scene.
     this.lamp = new CLight();
     this.matl = new Material(MATL_PEARL);
-    this.recurseDepth = 2;
+    this.recurseDepth = 2;  // 1 larger than real
+    this.pixFlag;
 }
 
 CScene.prototype.setImgBuf = function(newImg) {
@@ -91,12 +92,12 @@ CScene.prototype.initScene = function(num) {
 
     switch(num) {
         case 0:
+            this.lamp.lightPos = vec4.fromValues(-1.2, -5, 1, 1);  // world coord
             //---Ground Plane-----
             this.item.push(new CGeom(RT_GNDPLANE));   // Append gnd-plane to item[] array
             iNow = this.item.length -1;               // get its array index. 0
-                                                        // use default colors.
-                                                        // no transforms needed.
-            //-----Disk 1------           
+
+            // -----Disk 1------           
             this.item.push(new CGeom(RT_DISK));         // Append 2D disk to item[] &
             iNow = this.item.length -1;                 // get its array index. 1
             this.item[iNow].setIdent();                   // start in world coord axes
@@ -110,14 +111,14 @@ CScene.prototype.initScene = function(num) {
             this.item[iNow].setIdent();                   // start in world coord axes
             this.item[iNow].rayTranslate(1.2, -1.0, 1.0);  // move rightwards (+x),
 
-            // //-----Sphere 2-----
+            //-----Sphere 2-----
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             vec4.set(this.item[iNow].lineColor, 0.0,0.7,0.0,1.0);  // green
             this.item[iNow].setIdent();                   // start in world coord axes
             this.item[iNow].rayTranslate(2.4, -3.0, 1.0);  // move rightwards (+x),
 
-            // //-----Sphere 3-----
+            //-----Sphere 3-----
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             vec4.set(this.item[iNow].lineColor, 1.0,1.0,0.0,1.0);  // yellow
@@ -125,9 +126,31 @@ CScene.prototype.initScene = function(num) {
             this.item[iNow].rayTranslate(0, -3.0, 1.0);  // move rightwards (+x),
             break;
         case 1:
+            this.lamp.lightPos = vec4.fromValues(1.2, -3, 1, 1);
             // another: SCENE 1 SETUP   
-            console.log("JT_tracer0-Scene file: CScene.initScene(",num,") NOT YET IMPLEMENTED.");
-            this.initScene(0); // use default scene
+            this.item.push(new CGeom(RT_GNDPLANE));   // Append gnd-plane to item[] array
+            iNow = this.item.length -1;
+
+            //-----Capsule-----
+            this.item.push(new CGeom(RT_CAPSULE));       // Append sphere to item[] &
+            iNow = this.item.length -1; 
+            this.item[iNow].setIdent();                   // start in world coord axes
+            this.item[iNow].rayTranslate(-0.2, -3, 2.3);  // move rightwards (+x),
+            this.item[iNow].rayRotate(0.3*Math.PI, 0,0,1);
+            this.item[iNow].rayRotate(0.5*Math.PI, 1,0,0);
+
+            //-----Torus-----
+            this.item.push(new CGeom(RT_TORUS));       // Append sphere to item[] &
+            iNow = this.item.length -1; 
+            this.item[iNow].setIdent();                   // start in world coord axes
+            this.item[iNow].rayTranslate(0.7, -2, 2.5);
+            this.item[iNow].rayRotate(0.4*Math.PI, 1,0,0);
+
+            //-----Sphere 1-----
+            this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
+            iNow = this.item.length -1;                 // get its array index.
+            this.item[iNow].setIdent();                   // start in world coord axes
+            this.item[iNow].rayTranslate(-1.2, -3.5, 1.0);  // move rightwards (+x),
             break;
         case 2:
             // another: SCENE 2 SETUP   
@@ -141,7 +164,8 @@ CScene.prototype.initScene = function(num) {
       }
 }
 
-CScene.prototype.makeRayTracedImage = function() {
+// Version with shadow working correctly.
+CScene.prototype.makeRayTracedImage1 = function() {
     var colr = vec4.create();	// floating-point RGBA color value
 	var idx = 0;  // CImgBuf array index(i,j) == (j*this.xSiz + i)*this.pixSiz
     var myHitList = new CHitList();
@@ -173,15 +197,28 @@ CScene.prototype.makeRayTracedImage = function() {
                         this.rayCam.setEyeRay(this.eyeRay, i + si/this.rayCam.xSampMax + Math.random(), j + sj/this.rayCam.ySampMax + Math.random());
                     }
 
+                    // Diagnostic
+                    if(i==Math.round(this.imgBuf.xSiz*0.6) && j==this.imgBuf.ySiz*0.5) { 
+                        this.pixFlag = 1;                     // pixFlag==1 for JUST ONE pixel
+                        console.log("CScene.makeRayTracedImage() is at pixel [",i,", ",j,"].");
+                    } else {
+                        this.pixFlag = 0;
+                    }
+
                     myHitList.init();  // hitlist for each ray should be different
                     
                     for(var k = 0; k < this.item.length; k++) {
                         this.item[k].traceMe(this.eyeRay, myHitList); 
                     }
+
+                    if(this.pixFlag == 1) { // print values during just one selected pixel
+                        console.log("flag: x,y:myHit", i,j, myHitList.hitlist[myHitList.iNearest]);
+                    }
+
                     if (myHitList.hitlist.length == 0){  // hits nothing
                         vec4.copy(colr, this.skyColor);
                     } else {
-                        newHit = myHitList.hitlist[myHitList.iNearest];
+                        var newHit = myHitList.hitlist[myHitList.iNearest];
                         if(newHit.hitNum == 0 || newHit.hitNum == 1) {
                             var phong = this.findShade(newHit);
                             var mix = vec4.create();
@@ -208,10 +245,10 @@ CScene.prototype.makeRayTracedImage = function() {
     this.imgBuf.float2int();
 }
 
-CScene.prototype.findShade = function(hit){
+CScene.prototype.findShade1 = function(hit){
     var shadowHitList = new CHitList();
-    hitFlag = false;
-    var phong = vec4.create();
+    var hitFlag = false;
+    var phong = vec4.fromValues(0.0,0.0,0.0,1);
 
      // create shadow ray from lamp to nearest hit point
     this.lamp.setShadowRay(this.shadowRay, hit.hitPt); 
@@ -227,7 +264,8 @@ CScene.prototype.findShade = function(hit){
     var N = hit.surfNorm;
     var V = hit.viewN;
 
-    var C = vec4.scale(N, N, vec4.dot(L,N));
+    var C = vec4.create();
+    vec4.scale(C, N, vec4.dot(L,N));
     var R = vec4.create();
     vec4.scale(C, C, 2);
     vec4.subtract(R, C, L);
@@ -247,11 +285,170 @@ CScene.prototype.findShade = function(hit){
         phong[2] += this.lamp.Id[2] * this.matl.K_diff[2] * Math.max(0, LN)
                     + this.lamp.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
     }
+
     this.lamp.enable = true;
     return phong;
 }
 
-CScene.prototype.findReflectedRay = function(hit){
-    rRay = new CRay();
-    // var L
+
+// Try recursive version
+CScene.prototype.makeRayTracedImage = function() {
+	var idx = 0;  // CImgBuf array index(i,j) == (j*this.xSiz + i)*this.pixSiz
+    var myHitList = new CHitList();
+
+    if (isFrustum){
+        this.rayCam.rayFrustum(-1.0, 1.0, -1.0, 1.0, 1.0);
+    } else {
+        this.rayCam.rayPerspective(gui.camFovy, gui.camAspect, gui.camNear);
+    }
+    this.rayCam.rayLookAt(gui.camEyePt, gui.camAimPt, gui.camUpVec);
+    this.rayCam.xSampMax = g_AAcode;
+    this.rayCam.ySampMax = g_AAcode;
+    this.setImgBuf(this.imgBuf);
+
+    for(var j = 0; j < this.imgBuf.ySiz; j++) {        // for the j-th row of pixels.
+        for(var i = 0; i < this.imgBuf.xSiz; i++) {
+            idx = (j * this.imgBuf.xSiz + i) * this.imgBuf.pixSiz;	// Array index at pixel (i,j) 
+            this.imgBuf.fBuf[idx   ] = 0;	
+			this.imgBuf.fBuf[idx +1] = 0;
+			this.imgBuf.fBuf[idx +2] = 0;
+            this.imgBuf.fBuf[idx +3] = 1;
+            // superSampling
+            for (var sj = 0; sj < this.rayCam.ySampMax; sj++){ 
+                for (var si = 0; si < this.rayCam.xSampMax; si++){
+
+                    if (!g_isJitter){
+                        this.rayCam.setEyeRay(this.eyeRay, i + si/this.rayCam.xSampMax + 0.5, j + sj/this.rayCam.ySampMax + 0.5);
+                    } else {
+                        this.rayCam.setEyeRay(this.eyeRay, i + si/this.rayCam.xSampMax + Math.random(), j + sj/this.rayCam.ySampMax + Math.random());
+                    }
+
+                    // Diagnostic
+                    if(i==Math.round(this.imgBuf.xSiz*0.766) && j==Math.round(this.imgBuf.ySiz*0.57)) { 
+                        this.pixFlag = 1;                     // pixFlag==1 for JUST ONE pixel
+                        console.log("CScene.makeRayTracedImage() is at pixel [",i,", ",j,"].");
+                    } else {
+                        this.pixFlag = 0;
+                    }
+
+                    var colr = this.rayTrace(this.eyeRay, myHitList, this.recurseDepth);  // return final color for nearest hitpt in myHitList. 
+                    
+                    this.imgBuf.fBuf[idx   ] += colr[0];	
+					this.imgBuf.fBuf[idx +1] += colr[1];
+					this.imgBuf.fBuf[idx +2] += colr[2];
+                }
+            }
+            // Average color as pixel color
+            this.imgBuf.fBuf[idx   ] /= this.rayCam.xSampMax * this.rayCam.ySampMax;	
+			this.imgBuf.fBuf[idx +1] /= this.rayCam.xSampMax * this.rayCam.ySampMax;
+			this.imgBuf.fBuf[idx +2] /= this.rayCam.xSampMax * this.rayCam.ySampMax;
+        }
+    }
+    this.imgBuf.float2int();
+}
+
+CScene.prototype.findShade = function(hit){
+    var shadowHitList = new CHitList();
+    var hitFlag = false;
+    var phong = vec4.fromValues(1.0,1.0,1.0,1);
+
+     // create shadow ray from nearest hit point to lamp
+    this.lamp.setShadowRay(this.shadowRay, hit.hitPt); 
+    for(var k = 0; k < this.item.length; k++) {
+        if (this.item[k] == hit.hitGeom){continue;}
+        hitFlag = this.item[k].traceMe(this.shadowRay, shadowHitList); 
+        if (hitFlag){
+            // hit something, disable light
+            this.lamp.enable = false;
+        }
+    }
+    // Calculate lighting
+    var L = this.shadowRay.dir;
+    var N = hit.surfNorm;
+    var V = hit.viewN;
+
+    var C = vec4.create();
+    vec4.scale(C, N, vec4.dot(L,N));
+    var R = vec4.create();
+    vec4.scale(C, C, 2);
+    vec4.subtract(R, C, L);
+
+    phong[0] = this.matl.K_emit[0] + this.lamp.Ia[0] * this.matl.K_ambi[0];
+    phong[1] = this.matl.K_emit[1] + this.lamp.Ia[1] * this.matl.K_ambi[1];
+    phong[2] = this.matl.K_emit[2] + this.lamp.Ia[2] * this.matl.K_ambi[2];
+    phong[3] = 1.0;
+
+    if (this.lamp.enable){
+        var LN = vec4.dot(L,N);
+        var RV = vec4.dot(R,V);
+        phong[0] += this.lamp.Id[0] * this.matl.K_diff[0] * Math.max(0, LN)
+                    + this.lamp.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
+        phong[1] += this.lamp.Id[1] * this.matl.K_diff[1] * Math.max(0, LN)
+                    + this.lamp.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
+        phong[2] += this.lamp.Id[2] * this.matl.K_diff[2] * Math.max(0, LN)
+                    + this.lamp.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
+    }
+
+    if(hit.hitNum == 0) {
+        vec4.multiply(phong, phong, hit.hitGeom.gapColor);
+    } else {
+        vec4.multiply(phong, phong, hit.hitGeom.lineColor);
+    }
+
+    this.lamp.enable = true;
+    return phong;
+}
+
+
+CScene.prototype.rayTrace = function(ray, myHitList, depth){
+
+    if (depth == 0){
+        return vec4.create();
+    }
+
+    var colr = vec4.create();	// floating-point RGBA color value
+    myHitList.init();  // hitlist for each ray should be different
+    
+    if(this.pixFlag == 1) { // print values during just one selected pixel
+    }
+    
+    for(var k = 0; k < this.item.length; k++) {
+        this.item[k].traceMe(ray, myHitList); 
+    }
+
+    if (myHitList.hitlist.length == 0){  // hits nothing
+        vec4.copy(colr, this.skyColor);
+    } else {
+        var newHit = myHitList.hitlist[myHitList.iNearest];
+        if(newHit.hitNum == 0 || newHit.hitNum == 1) {
+            var phong = this.findShade(newHit);
+            var rRay = this.findReflectRay(newHit);
+            var reflectHitList = new CHitList();
+            reflectHitList.init();
+            var nextColr = this.rayTrace(rRay, reflectHitList, depth - 1);
+            vec4.multiply(nextColr, nextColr, this.matl.K_spec);
+            vec4.add(phong, phong, nextColr);
+            vec4.copy(colr, phong);
+        } else { 
+            vec4.copy(colr, this.skyColor);
+        }
+    }
+
+    return colr;
+}
+
+CScene.prototype.findReflectRay = function(hit){
+    var rRay = new CRay();
+    var L = hit.viewN;  // from hitpt to eye, unit
+    var N = hit.surfNorm;  // unit surface normal
+
+    var C = vec4.create();
+    vec4.scale(C, N, vec4.dot(L,N));
+    var R = vec4.create();  // reflected L, not unit
+    vec4.scale(C, C, 2);
+    vec4.subtract(R, C, L);
+
+    vec4.copy(rRay.orig, hit.hitPt);
+    vec4.copy(rRay.dir, R);
+    return rRay;
 }
