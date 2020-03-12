@@ -208,12 +208,6 @@ GUIbox.prototype.mouseUp = function(mev) {
   this.yMdragTot += (this.yCVV - this.yMpos);
   this.xMpos = this.xCVV;             // RECORD this latest mouse-position.
   this.yMpos = this.yCVV;
-
-  // display it on our webpage, too...
-  document.getElementById('MouseResult0').innerHTML = 
-  'GUIbox.mouseUp(       ) at CVV coords x,y = ' + 
-  this.xMpos.toFixed(5) + ', ' + 
-  this.yMpos.toFixed(5);
 }
 
 GUIbox.prototype.mouseToCVV = function(mev) {
@@ -277,27 +271,27 @@ GUIbox.prototype.keyDown = function(kev) {
     case "ArrowDown":
     break;	
     case "KeyJ":
-      g_myScene.lamp.lightPos[0] -= 0.5;
+      g_myScene.lamp1.lightPos[0] -= 0.5;
       reload();
     break;
     case "KeyL":
-      g_myScene.lamp.lightPos[0] += 0.5;
+      g_myScene.lamp1.lightPos[0] += 0.5;
       reload();
     break;
     case "KeyI":
-      g_myScene.lamp.lightPos[1] += 0.5;
+      g_myScene.lamp1.lightPos[1] += 0.5;
       reload();
     break;
     case "KeyK":
-      g_myScene.lamp.lightPos[1] -= 0.5;
+      g_myScene.lamp1.lightPos[1] -= 0.5;
       reload();
     break;
     case "KeyO":
-      g_myScene.lamp.lightPos[2] += 0.5;
+      g_myScene.lamp1.lightPos[2] += 0.5;
       reload();
     break;
     case "KeyU":
-      g_myScene.lamp.lightPos[2] -= 0.5;
+      g_myScene.lamp1.lightPos[2] -= 0.5;
       reload();
     break;
     default:

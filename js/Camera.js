@@ -75,6 +75,7 @@ function CRay() {
     this.orig = vec4.fromValues(0,0,0,1);  // Ray starting point (x,y,z,w)                                                                                // (default: at origin
     this.dir = 	vec4.fromValues(0,0,-1,0);  // direction vector
     this.isShadowRay = false;
+    this.lampPos;
 }
 
 CRay.prototype.printMe = function(name) {
@@ -96,7 +97,8 @@ function CLight(){
     this.Ia = vec3.fromValues(1.0, 1.0, 1.0);
     this.Id = vec3.fromValues(1.0, 1.0, 1.0);
     this.Is = vec3.fromValues(1.0, 1.0, 1.0);
-    this.enable = true;
+    this.enable = true;  // condition for each shadow ray
+    this.on = true;  // switch on/off lamp
 }
 
 CLight.prototype.setShadowRay = function(wRay, hitpt) {
@@ -107,4 +109,5 @@ CLight.prototype.setShadowRay = function(wRay, hitpt) {
     vec4.copy(wRay.orig, hitpt);	
     vec4.copy(wRay.dir, dir);  // not normalized.
     wRay.isShadowRay = true;
+    wRay.lampPos = this.lightPos;
 }

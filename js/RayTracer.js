@@ -81,7 +81,7 @@ function onSuperSampleButton() {
     else 
         document.getElementById('AAreport').innerHTML = g_AAcode + " sample/pixel. No jitter."; 
     
-    reload();
+    // reload();
 }
 
 function onJitterButton() {
@@ -115,5 +115,15 @@ function onRecurseButton(){
     if (g_myScene.recurseDepth == 3) g_myScene.recurseDepth = 0;
     g_myScene.recurseDepth ++;
     document.getElementById('RecurseReport').innerHTML = 'Recurse Depth ' + (g_myScene.recurseDepth-1);
+    reload();
+}
+
+function onLamp1Button(){
+    g_myScene.lamp1.on = !g_myScene.lamp1.on;
+    reload();
+}
+
+function onLamp2Button(){
+    g_myScene.lamp2.on = !g_myScene.lamp2.on;
     reload();
 }

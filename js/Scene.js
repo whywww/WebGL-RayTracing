@@ -52,13 +52,15 @@ function CScene() {
     this.imgBuf = g_myPic;          // DEFAULT output image buffer
                                     // (change it with setImgBuf() if needed)
     this.eyeRay = new CRay();	    // the ray from the camera for each pixel
-    this.shadowRay = new CRay();
+    this.shadowRay1 = new CRay();
+    this.shadowRay2 = new CRay();
     this.rayCam = new CCamera();    // the 3D camera that sets eyeRay values:
                                     // this is the DEFAULT camera.
                                     // (change it with setImgBuf() if needed)
     this.item = [];                 // this JavaScript array holds all the
                                     // CGeom objects of the current scene.
-    this.lamp = new CLight();
+    this.lamp1 = new CLight();
+    this.lamp2 = new CLight();
     this.matl = new Material(MATL_PEARL);
     this.recurseDepth = 2;  // 1 larger than real
     this.pixFlag;
@@ -92,7 +94,8 @@ CScene.prototype.initScene = function(num) {
 
     switch(num) {
         case 0:
-            this.lamp.lightPos = vec4.fromValues(-1.2, -5, 1, 1);  // world coord
+            this.lamp1.lightPos = vec4.fromValues(-1.2, -5, 1, 1);  // world coord
+            this.lamp2.lightPos = vec4.fromValues(1.2, 0, 3, 1);
             //---Ground Plane-----
             this.item.push(new CGeom(RT_GNDPLANE));   // Append gnd-plane to item[] array
             iNow = this.item.length -1;               // get its array index. 0
@@ -126,7 +129,8 @@ CScene.prototype.initScene = function(num) {
             this.item[iNow].rayTranslate(0, -3.0, 1.0);  // move rightwards (+x),
             break;
         case 1:
-            this.lamp.lightPos = vec4.fromValues(1.2, -3, 1, 1);
+            this.lamp1.lightPos = vec4.fromValues(1.2, -3, 1, 1);
+            this.lamp2.lightPos = vec4.fromValues(1.2, 0, 3, 1);
             // another: SCENE 1 SETUP   
             this.item.push(new CGeom(RT_GNDPLANE));   // Append gnd-plane to item[] array
             iNow = this.item.length -1;
@@ -151,6 +155,7 @@ CScene.prototype.initScene = function(num) {
             iNow = this.item.length -1;                 // get its array index.
             this.item[iNow].setIdent();                   // start in world coord axes
             this.item[iNow].rayTranslate(-1.2, -3.5, 1.0);  // move rightwards (+x),
+            // this.item[iNow].rayScale(1, 0.1, 1.0);
             break;
         case 2:
             // another: SCENE 2 SETUP   
@@ -247,46 +252,74 @@ CScene.prototype.makeRayTracedImage1 = function() {
 
 CScene.prototype.findShade1 = function(hit){
     var shadowHitList = new CHitList();
-    var hitFlag = false;
+    var hitFlag1 = false;
+    var hitFlag2 = false;
     var phong = vec4.fromValues(0.0,0.0,0.0,1);
 
      // create shadow ray from lamp to nearest hit point
-    this.lamp.setShadowRay(this.shadowRay, hit.hitPt); 
+    this.lamp1.setShadowRay(this.shadowRay1, hit.hitPt); 
+    this.lamp2.setShadowRay(this.shadowRay2, hit.hitPt); 
     for(var k = 0; k < this.item.length; k++) {
-        hitFlag = this.item[k].traceMe(this.shadowRay, shadowHitList); 
-        if (hitFlag){
+        hitFlag1 = this.item[k].traceMe(this.shadowRay1, shadowHitList); 
+        hitFlag2 = this.item[k].traceMe(this.shadowRay2, shadowHitList); 
+        if (hitFlag1){
             // hit something, disable light
-            this.lamp.enable = false;
+            this.lamp1.enable = false;
+        }
+        if (hitFlag2){
+            // hit something, disable light
+            this.lamp2.enable = false;
         }
     }
     // Calculate lighting
-    var L = this.shadowRay.dir;
+    var L1 = this.shadowRay1.dir;
     var N = hit.surfNorm;
     var V = hit.viewN;
 
-    var C = vec4.create();
-    vec4.scale(C, N, vec4.dot(L,N));
-    var R = vec4.create();
-    vec4.scale(C, C, 2);
-    vec4.subtract(R, C, L);
+    var C1 = vec4.create();
+    vec4.scale(C1, N, vec4.dot(L1,N));
+    var R1 = vec4.create();
+    vec4.scale(C1, C1, 2);
+    vec4.subtract(R1, C1, L1);
 
-    phong[0] = this.matl.K_emit[0] + this.lamp.Ia[0] * this.matl.K_ambi[0];
-    phong[1] = this.matl.K_emit[1] + this.lamp.Ia[1] * this.matl.K_ambi[1];
-    phong[2] = this.matl.K_emit[2] + this.lamp.Ia[2] * this.matl.K_ambi[2];
+    var L2 = this.shadowRay2.dir;
+    var C2 = vec4.create();
+    vec4.scale(C2, N, vec4.dot(L2,N));
+    var R2 = vec4.create();
+    vec4.scale(C2, C2, 2);
+    vec4.subtract(R2, C2, L2);
+
+    phong[0] = this.matl.K_emit[0] + (this.lamp1.Ia[0] + this.lamp2.Ia[0]) * this.matl.K_ambi[0];
+    phong[1] = this.matl.K_emit[1] + (this.lamp1.Ia[1] + this.lamp2.Ia[1]) * this.matl.K_ambi[1];
+    phong[2] = this.matl.K_emit[2] + (this.lamp1.Ia[2]+ this.lamp2.Ia[2]) * this.matl.K_ambi[2];
     phong[3] = 1.0;
 
-    if (this.lamp.enable){
-        var LN = vec4.dot(L,N);
-        var RV = vec4.dot(R,V);
-        phong[0] += this.lamp.Id[0] * this.matl.K_diff[0] * Math.max(0, LN)
-                    + this.lamp.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
-        phong[1] += this.lamp.Id[1] * this.matl.K_diff[1] * Math.max(0, LN)
-                    + this.lamp.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
-        phong[2] += this.lamp.Id[2] * this.matl.K_diff[2] * Math.max(0, LN)
-                    + this.lamp.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
+    if (this.lamp1.enable){
+        var L1N = vec4.dot(L1,N);
+        var R1V = vec4.dot(R1,V);
+        
+        phong[0] += this.lamp1.Id[0] * this.matl.K_diff[0] * Math.max(0, L1N)
+                    + this.lamp1.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+        phong[1] += this.lamp1.Id[1] * this.matl.K_diff[1] * Math.max(0, L1N)
+                    + this.lamp1.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+        phong[2] += this.lamp1.Id[2] * this.matl.K_diff[2] * Math.max(0, L1N)
+                    + this.lamp1.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+    }
+    if (this.lamp2.enable){
+        var L2N = vec4.dot(L2,N);
+        var R2V = vec4.dot(R2,V);
+
+        phong[0] += this.lamp2.Id[0] * this.matl.K_diff[0] * Math.max(0, L2N)
+                    + this.lamp2.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
+        phong[1] += this.lamp2.Id[1] * this.matl.K_diff[1] * Math.max(0, L2N)
+                    + this.lamp2.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
+        phong[2] += this.lamp2.Id[2] * this.matl.K_diff[2] * Math.max(0, L2N)
+                    + this.lamp2.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
     }
 
-    this.lamp.enable = true;
+    this.lamp1.enable = true;
+    this.lamp2.enable = true;
+
     return phong;
 }
 
@@ -349,44 +382,95 @@ CScene.prototype.makeRayTracedImage = function() {
 
 CScene.prototype.findShade = function(hit){
     var shadowHitList = new CHitList();
-    var hitFlag = false;
-    var phong = vec4.fromValues(1.0,1.0,1.0,1);
+    var hitFlag1 = false;
+    var hitFlag2 = false;
+    var phong = vec4.fromValues(0.0, 0.0, 0.0, 1);
 
-     // create shadow ray from nearest hit point to lamp
-    this.lamp.setShadowRay(this.shadowRay, hit.hitPt); 
-    for(var k = 0; k < this.item.length; k++) {
-        if (this.item[k] == hit.hitGeom){continue;}
-        hitFlag = this.item[k].traceMe(this.shadowRay, shadowHitList); 
-        if (hitFlag){
-            // hit something, disable light
-            this.lamp.enable = false;
-        }
-    }
     // Calculate lighting
-    var L = this.shadowRay.dir;
-    var N = hit.surfNorm;
-    var V = hit.viewN;
+    if (this.lamp1.on){
+        this.lamp1.setShadowRay(this.shadowRay1, hit.hitPt);
 
-    var C = vec4.create();
-    vec4.scale(C, N, vec4.dot(L,N));
-    var R = vec4.create();
-    vec4.scale(C, C, 2);
-    vec4.subtract(R, C, L);
+         // create shadow ray from nearest hit point to lamp
+        for(var k = 0; k < this.item.length; k++) {
+            if (this.item[k] == hit.hitGeom){continue;}
+            hitFlag1 = this.item[k].traceMe(this.shadowRay1, shadowHitList);
+            if (hitFlag1){
+                // hit something, disable light
+                this.lamp1.enable = false;
+            }
+        }
 
-    phong[0] = this.matl.K_emit[0] + this.lamp.Ia[0] * this.matl.K_ambi[0];
-    phong[1] = this.matl.K_emit[1] + this.lamp.Ia[1] * this.matl.K_ambi[1];
-    phong[2] = this.matl.K_emit[2] + this.lamp.Ia[2] * this.matl.K_ambi[2];
-    phong[3] = 1.0;
+        phong[0] = this.matl.K_emit[0] + (this.lamp1.Ia[0] + this.lamp2.Ia[0]) * this.matl.K_ambi[0];
+        phong[1] = this.matl.K_emit[1] + (this.lamp1.Ia[1] + this.lamp2.Ia[1]) * this.matl.K_ambi[1];
+        phong[2] = this.matl.K_emit[2] + (this.lamp1.Ia[2]+ this.lamp2.Ia[2]) * this.matl.K_ambi[2];
+        phong[3] = 1.0;
+    
+        if (this.lamp1.enable){
+            var L1 = this.shadowRay1.dir;
+            var N = hit.surfNorm;
+            var V = hit.viewN;
 
-    if (this.lamp.enable){
-        var LN = vec4.dot(L,N);
-        var RV = vec4.dot(R,V);
-        phong[0] += this.lamp.Id[0] * this.matl.K_diff[0] * Math.max(0, LN)
-                    + this.lamp.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
-        phong[1] += this.lamp.Id[1] * this.matl.K_diff[1] * Math.max(0, LN)
-                    + this.lamp.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
-        phong[2] += this.lamp.Id[2] * this.matl.K_diff[2] * Math.max(0, LN)
-                    + this.lamp.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, RV), this.matl.K_shiny);
+            var C1 = vec4.create();
+            vec4.scale(C1, N, vec4.dot(L1,N));
+            var R1 = vec4.create();
+            vec4.scale(C1, C1, 2);
+            vec4.subtract(R1, C1, L1);
+
+            var L1N = vec4.dot(L1,N);
+            var R1V = vec4.dot(R1,V);
+            
+            phong[0] += this.lamp1.Id[0] * this.matl.K_diff[0] * Math.max(0, L1N)
+                        + this.lamp1.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+            phong[1] += this.lamp1.Id[1] * this.matl.K_diff[1] * Math.max(0, L1N)
+                        + this.lamp1.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+            phong[2] += this.lamp1.Id[2] * this.matl.K_diff[2] * Math.max(0, L1N)
+                        + this.lamp1.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, R1V), this.matl.K_shiny);
+        }
+        this.lamp1.enable = true;
+    }
+    if (this.lamp2.on){
+        this.lamp2.setShadowRay(this.shadowRay2, hit.hitPt); 
+
+        // create shadow ray from nearest hit point to lamp
+        for(var k = 0; k < this.item.length; k++) {
+            if (this.item[k] == hit.hitGeom){continue;}
+            hitFlag2 = this.item[k].traceMe(this.shadowRay2, shadowHitList); 
+            if (hitFlag2){
+                // hit something, disable light
+                this.lamp2.enable = false;
+            }
+        }
+
+        phong[0] += this.matl.K_emit[0] + this.lamp2.Ia[0] * this.matl.K_ambi[0];
+        phong[1] += this.matl.K_emit[1] + this.lamp2.Ia[1] * this.matl.K_ambi[1];
+        phong[2] += this.matl.K_emit[2] + this.lamp2.Ia[2] * this.matl.K_ambi[2];
+        phong[3] = 1.0;
+
+        if (this.lamp2.enable){
+            var L2 = this.shadowRay2.dir;
+            var N = hit.surfNorm;
+            var V = hit.viewN;
+
+            var C2 = vec4.create();
+            vec4.scale(C2, N, vec4.dot(L2,N));
+            var R2 = vec4.create();
+            vec4.scale(C2, C2, 2);
+            vec4.subtract(R2, C2, L2);
+
+            var L2N = vec4.dot(L2,N);
+            var R2V = vec4.dot(R2,V);
+    
+            phong[0] += this.lamp2.Id[0] * this.matl.K_diff[0] * Math.max(0, L2N)
+                        + this.lamp2.Is[0] * this.matl.K_spec[0] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
+            phong[1] += this.lamp2.Id[1] * this.matl.K_diff[1] * Math.max(0, L2N)
+                        + this.lamp2.Is[1] * this.matl.K_spec[1] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
+            phong[2] += this.lamp2.Id[2] * this.matl.K_diff[2] * Math.max(0, L2N)
+                        + this.lamp2.Is[2] * this.matl.K_spec[2] * Math.pow(Math.max(0, R2V), this.matl.K_shiny);
+        }
+        this.lamp2.enable = true;
+    }
+    else if (!this.lamp1.on && !this.lamp2.on){
+        phong = vec4.fromValues(0.3,.3,.3,1.0);  // give some gray ambient color to no light condition
     }
 
     if(hit.hitNum == 0) {
@@ -395,7 +479,6 @@ CScene.prototype.findShade = function(hit){
         vec4.multiply(phong, phong, hit.hitGeom.lineColor);
     }
 
-    this.lamp.enable = true;
     return phong;
 }
 

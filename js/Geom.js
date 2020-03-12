@@ -179,7 +179,7 @@ CGeom.prototype.traceGrid = function(wRay, myHitList) {
     if (wRay.isShadowRay){
         // check if hitted obj is farther than lamp.
         var mpos = vec4.create();
-        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
         var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
         if (t0 > t0lamp){
             return false;
@@ -252,7 +252,7 @@ CGeom.prototype.traceDisk = function(wRay, myHitList) {
     if (wRay.isShadowRay){
         // check if hitted obj is farther than lamp.
         var mpos = vec4.create();
-        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
         var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
         if (t0 > t0lamp){
             return false;
@@ -338,7 +338,7 @@ CGeom.prototype.traceSphere = function(wRay, myHitList) {
     if (wRay.isShadowRay){  // hit something.
         // check if hitted obj is farther than lamp.
         var mpos = vec4.create();
-        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
         var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
         if (t0 > t0lamp){
             return false;
@@ -388,7 +388,7 @@ CGeom.prototype.traceCapsule = function(wRay, myHitList) {
     if (wRay.isShadowRay){
         // check if hitted obj is farther than lamp.
         var mpos = vec4.create();
-        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
         var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
         if (t0 > t0lamp){
             return false;
