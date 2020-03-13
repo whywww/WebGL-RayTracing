@@ -170,7 +170,7 @@ VBObox0.prototype.draw = function() {
 
     // sphere1
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(1, -1.0, 2.0));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(1, 1.0, 2.0));
     mat4.scale(this.mvpMat, this.mvpMat, vec3.fromValues(2, 2, 2));
 
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
@@ -178,14 +178,14 @@ VBObox0.prototype.draw = function() {
 
     // sphere2
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(2.4, -4.0, 1.2));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(2.4, -2.0, 1.2));
     mat4.scale(this.mvpMat, this.mvpMat, vec3.fromValues(1.2, 1.2, 1.2));
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINE_STRIP, this.bgnSphere, this.vboVerts - this.bgnSphere);
 
     // sphere3
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(0, -4.0, 1.0));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(0, -2.0, 1.0));
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINE_STRIP, this.bgnSphere, this.vboVerts - this.bgnSphere);
 }

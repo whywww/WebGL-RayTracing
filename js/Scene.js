@@ -43,7 +43,7 @@ CHitList.prototype.init = function(){
 }
 
 function CScene() {
-    this.RAY_EPSILON = 1.0E-1;     // ray-tracer precision limits; treat 
+    this.RAY_EPSILON = 1.0E-2;     // ray-tracer precision limits; treat 
                                     // any value smaller than this as zero.
                                     // (why?  JS uses 52-bit mantissa;
                                     // 2^-52 = 2.22E-16, so 10^-15 gives a
@@ -62,7 +62,7 @@ function CScene() {
     this.lamp1 = new CLight();
     this.lamp2 = new CLight();
     // this.matl = new Material(MATL_PEARL);
-    this.recurseDepth = 1;  // 1 larger than real
+    this.recurseDepth = 2;  // 1 larger than real
     this.pixFlag;
 }
 
@@ -94,7 +94,7 @@ CScene.prototype.initScene = function(num) {
 
     switch(num) {
         case 0:
-            this.lamp1.lightPos = vec4.fromValues(-1.2, -5, 1, 1);  // world coord
+            this.lamp1.lightPos = vec4.fromValues(1.2, 2, 4, 1);  // world coord
             this.lamp2.lightPos = gui.camEyePt;  // camera  headlight
             //---Ground Plane-----
             this.item.push(new CGeom(RT_GNDPLANE));   // Append gnd-plane to item[] array
@@ -107,14 +107,13 @@ CScene.prototype.initScene = function(num) {
             this.item[iNow].setIdent();                   // start in world coord axes
             this.item[iNow].rayTranslate(-3,1,1.3);        // move drawing axes 
             this.item[iNow].rayRotate(0.25*Math.PI, 1,0,0); // rot 45deg on x axis to face us
-            // this.item[iNow].rayRotate(0.5*Math.PI, 0,0,1); // z-axis rotate 45deg.
             this.item[iNow].matl = new Material(MATL_PEARL);
             
             //-----Sphere 1-----
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             this.item[iNow].setIdent();                   // start in world coord axes
-            this.item[iNow].rayTranslate(1, -1.0, 2.0);  // move rightwards (+x),
+            this.item[iNow].rayTranslate(1, 1.0, 2.0);  // move rightwards (+x),
             this.item[iNow].rayScale(2,2,2);
             this.item[iNow].matl = new Material(MATL_TURQUOISE);
 
@@ -122,16 +121,16 @@ CScene.prototype.initScene = function(num) {
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             this.item[iNow].setIdent();                   // start in world coord axes
-            this.item[iNow].rayTranslate(2.5, -4.0, 1.2);  // move rightwards (+x),
+            this.item[iNow].rayTranslate(2.5, -2.0, 1.2);  // move rightwards (+x),
             this.item[iNow].rayScale(1.2, 1.2, 1.2);
-            this.item[iNow].matl = new Material(MATL_PEWTER);
+            this.item[iNow].matl = new Material(MATL_COPPER_SHINY);
 
             //-----Sphere 3-----
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             this.item[iNow].setIdent();                   // start in world coord axes
-            this.item[iNow].rayTranslate(0, -4.0, 1.0);  // move rightwards (+x),
-            this.item[iNow].matl = new Material(MATL_PEARL);
+            this.item[iNow].rayTranslate(0, -2.0, 1.0);  // move rightwards (+x),
+            this.item[iNow].matl = new Material(MATL_PEWTER);
             break;
 
         case 1:
@@ -164,10 +163,26 @@ CScene.prototype.initScene = function(num) {
             this.item.push(new CGeom(RT_SPHERE));       // Append sphere to item[] &
             iNow = this.item.length -1;                 // get its array index.
             this.item[iNow].setIdent();                   // start in world coord axes
-            this.item[iNow].rayTranslate(-1.2, -3.5, 1.0);  // move rightwards (+x),
-            this.item[iNow].matl = new Material(MATL_JADE);
-            break;
+            this.item[iNow].rayTranslate(-2, -3.0, 1.0);  // move rightwards (+x),
+            this.item[iNow].matl = new Material(MATL_SILVER_SHINY);
 
+            //-----CSG 1-----
+            this.item.push(new CGeom(RT_CSG_SPHERES));       // Append sphere to item[] &
+            iNow = this.item.length -1;                 // get its array index.
+            this.item[iNow].setIdent();                   // start in world coord axes
+            this.item[iNow].rayTranslate(2.5, -2.5, 1.0);  // move rightwards (+x),
+            this.item[iNow].rayRotate(-0.25*Math.PI, 0,1,0);
+            this.item[iNow].matl = new Material(MATL_JADE);
+
+            //-----CSG 2-----
+            this.item.push(new CGeom(RT_CSG_SPHERES));       // Append sphere to item[] &
+            iNow = this.item.length -1;                 // get its array index.
+            this.item[iNow].setIdent();                   // start in world coord axes
+            this.item[iNow].rayTranslate(0.5, -4, 1.0);  // move rightwards (+x),
+            this.item[iNow].rayScale(.75,.75,.75);
+            this.item[iNow].matl = new Material(MATL_BRONZE_DULL);
+
+            break;
         case 2:
             this.lamp1.lightPos = vec4.fromValues(1.2, 0, 3, 1);
             this.lamp2.lightPos = gui.camEyePt;  // camera  headlight
@@ -282,7 +297,7 @@ CScene.prototype.initScene = function(num) {
             this.item[iNow].rayScale(1.0, 0.3, 1.0);
             this.item[iNow].matl = new Material(MATL_COPPER_SHINY);
             break;
-            
+
         case 3:
             this.lamp1.lightPos = vec4.fromValues(1.2, 0, 3, 1);
             this.lamp2.lightPos = gui.camEyePt;  // camera  headlight
