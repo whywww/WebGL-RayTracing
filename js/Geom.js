@@ -17,6 +17,7 @@ function CGeom(shapeSelect) {
     this.maxStep = 100;
     this.maxDis = 100;
     this.surfDis = 0.001;
+    this.matl;
 
     switch(this.shapeType) {
         case RT_GNDPLANE: //--------------------------------------------------------
@@ -40,20 +41,24 @@ function CGeom(shapeSelect) {
         case RT_SPHERE:
             this.radius = 1.0;
             this.traceMe = function(inR,hitlist) { return this.traceSphere(inR,hitlist); };
-            this.lineColor = vec4.fromValues(0.0,0.2,0.7,1.0);  // blue
+            this.lineColor = vec4.fromValues(1.0,1.0,1.0,1.0);  // material color
             break;
         case RT_CAPSULE:
             this.end0 = vec4.fromValues(0,0,0,1);
             this.end1 = vec4.fromValues(2,0,0,1)
             this.radius = 0.2;
             this.traceMe = function(inR, hitlist) { return this.traceCapsule(inR,hitlist); };
-            this.lineColor = vec4.fromValues(0.7,0.2,0.7,1.0);  // pink
+            this.lineColor = vec4.fromValues(1.0,1.0,1.0,1.0);  // material color
             break;
         case RT_TORUS:
             this.bigR = 1;
             this.smallR = 0.1;
             this.traceMe = function(inR, hitlist) { return this.traceTorus(inR,hitlist); };
-            this.lineColor = vec4.fromValues(0.9,0.9,0.0,1.0);  // grey
+            this.lineColor = vec4.fromValues(1.0,1.0,1.0,1.0);  // material color
+            break;
+        case RT_BOX:
+            this.traceMe = function(inR, hitlist) { return this.traceBox(inR,hitlist); };
+            this.lineColor = vec4.fromValues(1.0,1.0,1.0,1.0);  // material color
             break;
         default:
             console.log("CGeom() constructor: ERROR! INVALID shapeSelect:", shapeSelect);
@@ -448,7 +453,7 @@ CGeom.prototype.traceTorus = function(wRay, myHitList) {
     if (wRay.isShadowRay){
         // check if hitted obj is farther than lamp.
         var mpos = vec4.create();
-        vec4.transformMat4(mpos, g_myScene.lamp.lightPos, this.worldRay2model);
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
         var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
         if (t0 > t0lamp){
             return false;
@@ -483,6 +488,67 @@ CGeom.prototype.traceTorus = function(wRay, myHitList) {
     var x = this.bigR * Math.cos(theta);
     var y = this.bigR * Math.sin(theta);
     var modelNorm = vec4.fromValues(hit.modelHitPt[0] - x, hit.modelHitPt[1] - y, hit.modelHitPt[2], 0);
+
+    vec4.transformMat4(hit.surfNorm, modelNorm, this.normal2world);
+    vec4.normalize(hit.surfNorm, hit.surfNorm);
+
+    hit.hitNum = 1;
+    return;
+}
+
+CGeom.prototype.traceBox = function(wRay, myHitList) {
+    var mRay = new CRay();  // model coord ray
+    var hit = new CHit();
+    hit.init();
+
+    vec4.transformMat4(mRay.orig, wRay.orig, this.worldRay2model);
+    vec4.transformMat4(mRay.dir, wRay.dir, this.worldRay2model);
+
+    var t0 = this.rayMarching(mRay);
+    if(t0 < 0) {  
+        // ray is BEHIND eyepoint
+        return false;  
+    }
+
+    if (wRay.isShadowRay){
+        // check if hitted obj is farther than lamp.
+        var mpos = vec4.create();
+        vec4.transformMat4(mpos, wRay.lampPos, this.worldRay2model);
+        var t0lamp = (mpos[2] - mRay.orig[2]) / mRay.dir[2];
+        if (t0 > t0lamp){
+            return false;
+        }
+        return true;
+    }
+
+    myHitList.hitlist.push(hit);
+    myHitList.iEnd = myHitList.hitlist.length-1;
+    var nearestHit = myHitList.hitlist[myHitList.iNearest];
+
+    if (t0 <= nearestHit.t0){
+        // the hit point is nearer than nearest hit
+        myHitList.iNearest = myHitList.iEnd;  // update new nearest index
+    }
+    // update hit variables
+    hit.t0 = t0;
+    hit.hitGeom = this;
+
+    vec4.scaleAndAdd(hit.modelHitPt, mRay.orig, mRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+    vec4.scaleAndAdd(hit.hitPt, wRay.orig, wRay.dir, hit.t0 - g_myScene.RAY_EPSILON);
+
+    vec4.negate(hit.viewN, wRay.dir);
+    vec4.normalize(hit.viewN, hit.viewN);
+
+    // Compute Normal
+    var modelNorm = vec4.create();
+    var coord = [Math.abs(hit.modelHitPt[0]), Math.abs(hit.modelHitPt[1]), Math.abs(hit.modelHitPt[2])];
+    if (coord[0] > coord[1] && coord[0] > coord[2]){
+        modelNorm[0] = Math.sign(hit.modelHitPt[0]);
+    } else if (coord[1] > coord[0] && coord[1] > coord[2]) {
+        modelNorm[1] = Math.sign(hit.modelHitPt[1]);
+    } else if (coord[2] > coord[0] && coord[2] > coord[1]){
+        modelNorm[2] = Math.sign(hit.modelHitPt[2]);
+    }
 
     vec4.transformMat4(hit.surfNorm, modelNorm, this.normal2world);
     vec4.normalize(hit.surfNorm, hit.surfNorm);
@@ -534,6 +600,14 @@ CGeom.prototype.getDistance = function(p){
         case RT_TORUS:
             var x = Math.sqrt(p[0]*p[0] + p[1]*p[1]) - this.bigR;
             dis = Math.sqrt(x*x + p[2]*p[2]) - this.smallR;
+            break;
+        case RT_BOX:
+            var d = vec4.fromValues(Math.abs(p[0])-.5, Math.abs(p[1])-.5, Math.abs(p[2])-.5, 0);
+            var tmp = Math.min(Math.max(d[0], Math.max(d[1], d[2])), 0.0);
+            d[0] = Math.max(d[0], 0);
+            d[1] = Math.max(d[1], 0);
+            d[2] = Math.max(d[2], 0);
+            dis = Math.sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]) + tmp;
             break;
     }
     return dis;

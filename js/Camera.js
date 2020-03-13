@@ -97,7 +97,6 @@ function CLight(){
     this.Ia = vec3.fromValues(1.0, 1.0, 1.0);
     this.Id = vec3.fromValues(1.0, 1.0, 1.0);
     this.Is = vec3.fromValues(1.0, 1.0, 1.0);
-    this.enable = true;  // condition for each shadow ray
     this.on = true;  // switch on/off lamp
 }
 

@@ -96,7 +96,7 @@ function onJitterButton() {
 }
 
 function onSceneButton(){
-    if (sceneNum == 1) sceneNum = 0;
+    if (sceneNum == 4) sceneNum = 0;
     else sceneNum ++;
     g_myScene.initScene(sceneNum);
     document.getElementById('SceneReport').innerHTML = 'Show Scene Number ' + sceneNum;
@@ -112,7 +112,7 @@ function reload(){
 }
 
 function onRecurseButton(){
-    if (g_myScene.recurseDepth == 3) g_myScene.recurseDepth = 0;
+    if (g_myScene.recurseDepth == 9) g_myScene.recurseDepth = 0;
     g_myScene.recurseDepth ++;
     document.getElementById('RecurseReport').innerHTML = 'Recurse Depth ' + (g_myScene.recurseDepth-1);
     reload();

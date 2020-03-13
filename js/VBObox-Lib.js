@@ -161,29 +161,31 @@ VBObox0.prototype.draw = function() {
 
     // disk
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(1.0, 1.0, 1.3));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(-3.0, 1.0, 1.3));
     mat4.rotate(this.mvpMat, this.mvpMat, 0.25*Math.PI, vec3.fromValues(1,0,0));
-    mat4.rotate(this.mvpMat, this.mvpMat, 0.25*Math.PI, vec3.fromValues(0,0,1));
+    // mat4.rotate(this.mvpMat, this.mvpMat, 0.25*Math.PI, vec3.fromValues(0,0,1));
  
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINES, this.bgnDisk, this.bgnSphere - this.bgnDisk);
 
     // sphere1
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(1.2, -1.0, 1.0));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(1, -1.0, 2.0));
+    mat4.scale(this.mvpMat, this.mvpMat, vec3.fromValues(2, 2, 2));
 
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINE_STRIP, this.bgnSphere, this.vboVerts - this.bgnSphere);
 
     // sphere2
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(2.4, -3.0, 1.0));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(2.4, -4.0, 1.2));
+    mat4.scale(this.mvpMat, this.mvpMat, vec3.fromValues(1.2, 1.2, 1.2));
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINE_STRIP, this.bgnSphere, this.vboVerts - this.bgnSphere);
 
     // sphere3
     mat4.copy(this.mvpMat, tmp);
-    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(0, -3.0, 1.0));
+    mat4.translate(this.mvpMat, this.mvpMat, vec3.fromValues(0, -4.0, 1.0));
     gl.uniformMatrix4fv(this.u_mvpMatLoc, false, this.mvpMat);
     gl.drawArrays(gl.LINE_STRIP, this.bgnSphere, this.vboVerts - this.bgnSphere);
 }
