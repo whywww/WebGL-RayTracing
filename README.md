@@ -1,3 +1,5 @@
 # WebGL-RayTracing
-[CS351-2] Ray Tracing. Ray Marching. Ray Casting.
+
 Live Demo: https://whywww.github.io/WebGL-RayTracing/
+
+Documentation: https://github.com/whywww/WebGL-RayTracing/blob/master/ProjectB_report.pdf
